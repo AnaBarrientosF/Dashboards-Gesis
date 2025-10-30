@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from streamlit_plotly_events import plotly_events
+
 
 # Configuración de la página
 st.set_page_config(page_title="Dashboard Proyectos Gesis", layout="wide")
@@ -322,4 +322,5 @@ elif menu == "Proyectos":
                     <strong>Finalización:</strong> {fin}<br>
                     <strong>Progreso:</strong> {progreso:.1f}%
                 </div>
+
             """, unsafe_allow_html=True)
