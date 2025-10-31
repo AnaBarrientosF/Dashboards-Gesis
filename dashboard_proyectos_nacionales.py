@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-
 # Configuración de la página
 st.set_page_config(page_title="Dashboard Proyectos Gesis", layout="wide")
 
@@ -82,6 +81,8 @@ if 'FECHA DE INICIO' in df.columns:
     df['FECHA DE INICIO'] = pd.to_datetime(df['FECHA DE INICIO'], format='%d-%m-%y', errors='coerce').dt.strftime('%d-%m-%Y')
 if 'FECHA DE FINALIZACION' in df.columns:
     df['FECHA DE FINALIZACION'] = pd.to_datetime(df['FECHA DE FINALIZACION'], format='%d-%m-%y', errors='coerce').dt.strftime('%d-%m-%Y')
+if 'FECHA SIGUIENTES PASOS' in df.columns:
+    df['FECHA SIGUIENTES PASOS'] = pd.to_datetime(df['FECHA SIGUIENTES PASOS'], format='%d-%m-%y', errors='coerce').dt.strftime('%d-%m-%Y')
     
 
 # Sidebar
@@ -298,16 +299,19 @@ elif menu == "Proyectos":
         for _, row in filtered_df.iterrows():
             estado = row['ESTADO']
             cliente = row['CLIENTE']
+            proyecto = row['PROYECTO']
+            descripcion = row['DESCRIPCION']
             ingeniero = row['INGENIERO DE IMPLEMENTACION']
             inicio = row.get('FECHA DE INICIO', 'No disponible')
             fin = row.get('FECHA DE FINALIZACION', 'No disponible')
+            fechas_siguientes = row.get('FECHA SIGUIENTES PASOS', 'No disponible')
             progreso = row['PORCENTAJE']
 
             # ✅ Colores dinámicos según estado (incluye En pausa)
             if "Finalizado" in estado:
-                color = "#28A745"  # Verde
+                color = "#FFA500"  # Verde
             elif "Activo" in estado:
-                color = "#FFA500"  # Naranja
+                color = "#28A745"  # Naranja
             elif "En pausa" in estado:
                 color = "#6C757D"  # Gris para En pausa
             else:
@@ -316,11 +320,13 @@ elif menu == "Proyectos":
             st.markdown(f"""
                 <div style="background:{color};padding:15px;border-radius:10px;margin-bottom:10px;color:white;">
                     <strong>Cliente:</strong> {cliente}<br>
+                    <strong>Proyecto:</strong> {proyecto}<br>
+                    <strong>Descripción:</strong> {descripcion}<br>
                     <strong>Ingeniero:</strong> {ingeniero}<br>
                     <strong>Estado:</strong> {estado}<br>
                     <strong>Inicio:</strong> {inicio}<br>
                     <strong>Finalización:</strong> {fin}<br>
+                    <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
                     <strong>Progreso:</strong> {progreso:.1f}%
                 </div>
-
             """, unsafe_allow_html=True)
