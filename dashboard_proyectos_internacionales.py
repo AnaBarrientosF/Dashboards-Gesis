@@ -8,46 +8,87 @@ st.set_page_config(page_title="Dashboard Proyectos Gesis", layout="wide")
 
 # CSS para cambiar el color del sidebar y el header
 st.markdown("""
-    <style>
+<style>
+
+/* ==================== FONDO GENERAL ==================== */
+.stApp {
+    background-color: #FBFBFB;
+}
+
+/* ==================== TEXTO GENERAL ==================== */
+h1, h2, h3, p, div, span {
+    color: black !important;
+}
+
+/* ==================== SIDEBAR ==================== */
+[data-testid="stSidebar"] {
+    background-color: #0B2A85;
+}
+[data-testid="stSidebar"] * {
+    color: white !important;
+}
+
+/* ==================== HEADER SUPERIOR ==================== */
+[data-testid="stHeader"] {
+    background-color: #1043D4;
+}
+[data-testid="stHeader"] * {
+    color: white !important;
+}
+
+/* ==================== MÉTRICAS ==================== */
+div[data-testid="stMetric"] {
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin: 5px;
+    text-align: center;
+}
+
+/* ==================== SELECT / MULTISELECT ==================== */
+
+/* Caja visible del selector */
+[data-baseweb="select"] > div {
+    border: 1px solid #ffffff66 !important;
+}
+
+/* Texto dentro del selector (valor seleccionado) */
+[data-baseweb="select"] * {
+    color: #FFFFFF !important;
+}                       
+
+/* Menú desplegable (lista al abrir el select) */
+[data-baseweb="menu"],
+[data-baseweb="popover"],
+[data-baseweb="popover-content"] {
+    color: #FFFFFF !important;
+    background-color: #FFFFFF !important;
     
-    .stApp {
-        background-color: #FBFBFB;
-    }
-    
-    /* Color del texto */
-    h1, h2, h3, p, div, span {
-        color: black !important;
-    }
+}
             
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #0B2A85;
-    }
-    [data-testid="stSidebar"] * {
-        color: white !important;
-    }
-    /* Header (barra superior donde está Deploy) */
-    [data-testid="stHeader"] {
-        background-color: #1043D4;
-    }
-    [data-testid="stHeader"] * {
-        color: white !important;
-    }
+[data-baseweb="menu"] [role="option"],
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover-content"] [role="option"] {
+    background-color: #FFFF !important;    /* fondo negro */
+    color: #FFFF !important;               /* texto gris claro (puedes cambiarlo) */
+    font-weight: 500;
+    padding: 6px 10px;
 
-    
-/* Contenedor de métricas */
-    
-    div[data-testid="stMetric"] {
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        margin: 5px;
-        text-align: center;
-    }
+}
+            
+/* ==================== Hover visual (cuando pasas el mouse) ==================== */
+[data-baseweb="menu"] [role="option"]:hover,
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover-content"] [role="option"]:hover,
+[data-baseweb="menu"] div[role="option"]:hover {
+    background-color: #B0B0B0  !important;
+    color: #FFFF !important;
+    cursor: pointer;         
 
 
-
-    </style>
+                      
+        
+</style>
 """, unsafe_allow_html=True)
 
 estado_counts = {
@@ -81,9 +122,7 @@ if 'FECHA DE INICIO' in df.columns:
     df['FECHA DE INICIO'] = pd.to_datetime(df['FECHA DE INICIO'], format='%d-%m-%y', errors='coerce').dt.strftime('%d-%m-%Y')
 if 'FECHA DE FINALIZACION' in df.columns:
     df['FECHA DE FINALIZACION'] = pd.to_datetime(df['FECHA DE FINALIZACION'], format='%d-%m-%y', errors='coerce').dt.strftime('%d-%m-%Y')
-if 'FECHA SIGUIENTES PASOS' in df.columns:
-    df['FECHA SIGUIENTES PASOS'] = pd.to_datetime(df['FECHA SIGUIENTES PASOS'], format='%d-%m-%y', errors='coerce').dt.strftime('%d-%m-%Y')
-    
+
 
 # Sidebar
 # Imagen en el sidebar
@@ -95,110 +134,7 @@ menu = st.sidebar.radio("Menú", ["Inicio", "Proyectos"])
 # Contenido principal
 if menu == "Inicio":
     st.title("Dashboard General")
-    st.write("")
-    st.write("")
-
-    # ==============================
-    # FILTRO POR ESTADO EN SIDEBAR
-    # ==============================
-    st.sidebar.header("Filtros")
-
-    # Filtro por País
-    pais_options = ["Todos"] + sorted(df['PAIS'].dropna().unique())
-    selected_pais = st.sidebar.radio("Filtrar por País:", pais_options)
-
-    estado_options = ["Todos"] + sorted(df['ESTADO'].unique())
-    selected_estado = st.sidebar.radio("Filtrar por Estado:", estado_options)
-
-    # ==============================
-    # APLICAR FILTRO
-    # ==============================
-  
-    filtered_df = df.copy()
-    if selected_pais != "Todos":
-        filtered_df = filtered_df[filtered_df['PAIS'] == selected_pais]
-    if selected_estado != "Todos":
-        filtered_df = filtered_df[filtered_df['ESTADO'] == selected_estado]
-
-
-
-    # ==============================
-    # MÉTRICAS DINÁMICAS
-    # ==============================
-    estado_counts = filtered_df['ESTADO'].value_counts()
-
-    if selected_estado == "Todos":
-        total_proyectos = filtered_df['PROYECTO'].nunique()
-        if len(estado_counts) > 0:
-            num_cols = len(estado_counts) + 1
-            cols = st.columns(num_cols)
-            cols[0].metric("Total Proyectos", total_proyectos)
-            for i, (estado, cantidad) in enumerate(estado_counts.items(), start=1):
-                cols[i].metric(estado, cantidad)
-        else:
-            st.warning("No hay métricas para mostrar con los filtros seleccionados.")
-    else:
-        if len(estado_counts) > 0:
-            st.write("Métricas filtradas:")
-            num_cols = len(estado_counts)
-            cols = st.columns(num_cols)
-            for i, (estado, cantidad) in enumerate(estado_counts.items()):
-                cols[i].metric(estado, cantidad)
-        else:
-            st.warning("No hay métricas para mostrar con los filtros seleccionados.")
-
-    st.write("---")
-
-
-    # ==============================
-    # AGRUPAR DATOS POR CLIENTE
-    # ==============================
-    grouped_cliente = filtered_df.groupby('CLIENTE').agg(
-        cantidad_proyectos=('PROYECTO', 'count'),
-        progreso_promedio=('PORCENTAJE', 'mean'),
-        Ingeniero=('INGENIERO DE IMPLEMENTACION', lambda x: ', '.join(x.unique())),
-        Pais=('PAIS', lambda x: ', '.join(x.unique()))
-    ).reset_index()
-
-    # Agregar columna con estados concatenados
-    estados_por_cliente = filtered_df.groupby('CLIENTE')['ESTADO'].apply(lambda x: ', '.join(x.unique())).reset_index()
-    grouped_cliente = grouped_cliente.merge(estados_por_cliente, on='CLIENTE')
-
-    # ==============================
-    # GRÁFICO POR CLIENTE
-    # ==============================
-    if not grouped_cliente.empty:
-        grouped_cliente = grouped_cliente.sort_values(by='progreso_promedio', ascending=True)
-
-        fig_cliente = px.bar(
-            grouped_cliente,
-            x='progreso_promedio',
-            y='CLIENTE',
-            orientation='h',
-            text='progreso_promedio',
-            labels={
-                'progreso_promedio': 'Progreso (%)',
-                'CLIENTE': 'Cliente',
-                'cantidad_proyectos': 'Cantidad de proyectos'
-            },
-            title='Progreso de Proyectos por Cliente',
-            hover_data={
-                'cantidad_proyectos': True,
-                'ESTADO': True,
-                'Ingeniero': True,
-                'Pais': True
-            }
-        )
-
-        fig_cliente.update_xaxes(range=[0, 100])
-        fig_cliente.update_traces(textposition='outside')
-        fig_cliente.update_layout(height=600, margin=dict(l=50, r=50, t=80, b=50))
-
-        st.plotly_chart(fig_cliente, use_container_width=True)
-    else:
-        st.warning("No hay datos para los filtros seleccionados.")
-
-   
+    
 
 
 elif menu == "Proyectos":
@@ -208,94 +144,102 @@ elif menu == "Proyectos":
     st.write("")
 
     # ==============================
-    # FILTROS EN SIDEBAR
+    # 🎛️ FILTROS PERSONALIZADOS
     # ==============================
-    st.sidebar.header("Filtros")
+    st.sidebar.header("Filtros Personalizados")
 
-    # Filtro por País
-    pais_options = ["Todos"] + sorted(df['PAIS'].dropna().unique())
-    selected_pais = st.sidebar.radio("Filtrar por País:", pais_options)
+    # Selección de columnas filtrables (solo texto)
+    columnas_filtrables = df.select_dtypes(include=["object"]).columns.tolist()
+    columnas_seleccionadas = st.sidebar.multiselect(
+        "Selecciona columnas para filtrar:",
+        opciones := columnas_filtrables,
+        default=[]
+    )
 
-    # Filtro por Ingeniero
-    ingeniero_options = ["Todos"] + sorted(df['INGENIERO DE IMPLEMENTACION'].unique())
-    selected_ingeniero = st.sidebar.radio("Filtrar por Ingeniero:", ingeniero_options)
+    # Crear selectboxes dinámicos según columnas seleccionadas
+    filtros = {}
+    for col in columnas_seleccionadas:
+        valores_unicos = ["Todos"] + sorted(df[col].dropna().astype(str).unique().tolist())
+        valor_sel = st.sidebar.selectbox(
+            f"Filtrar por {col}:",
+            valores_unicos,
+            key=f"filter_{col}"
+        )
+        if valor_sel != "Todos":
+            filtros[col] = valor_sel
 
-    # Filtro por Estado
-    estado_options = ["Todos"] + sorted(df['ESTADO'].unique())
-    selected_estado = st.sidebar.radio("Filtrar por Estado:", estado_options)
+   
 
     # ==============================
-    # APLICAR FILTROS
+    # 🧩 APLICAR FILTROS
     # ==============================
     filtered_df = df.copy()
-    if selected_pais != "Todos":
-        filtered_df = filtered_df[filtered_df['PAIS'] == selected_pais]
-    if selected_ingeniero != "Todos":
-        filtered_df = filtered_df[filtered_df['INGENIERO DE IMPLEMENTACION'] == selected_ingeniero]
-    if selected_estado != "Todos":
-        filtered_df = filtered_df[filtered_df['ESTADO'] == selected_estado]
+    for col, val in filtros.items():
+        filtered_df = filtered_df[filtered_df[col].astype(str) == val]
 
     # ==============================
-    # MÉTRICAS DINÁMICAS
+    # 📊 MÉTRICAS DINÁMICAS
     # ==============================
-    estado_counts = filtered_df['ESTADO'].value_counts()
+    estado_counts = filtered_df["ESTADO"].value_counts()
 
-    if estado_counts.empty:
-        st.warning("No hay métricas para mostrar con los filtros seleccionados.")
+    if not estado_counts.empty:
+        total_proyectos = filtered_df["PROYECTO"].nunique()
+        num_cols = len(estado_counts) + 1
+        cols = st.columns(num_cols)
+        cols[0].metric("Total Proyectos", total_proyectos)
+        for i, (estado, cantidad) in enumerate(estado_counts.items(), start=1):
+            cols[i].metric(estado, cantidad)
     else:
-        if selected_estado == "Todos" and selected_ingeniero == "Todos" and selected_pais == "Todos":
-            total_proyectos = filtered_df['PROYECTO'].nunique()
-            num_cols = len(estado_counts) + 1
-            cols = st.columns(num_cols)
-            cols[0].metric("Total Proyectos", total_proyectos)
-            for i, (estado, cantidad) in enumerate(estado_counts.items(), start=1):
-                cols[i].metric(estado, cantidad)
-        else:
-            num_cols = max(len(estado_counts), 1)
-            cols = st.columns(num_cols)
-            for i, (estado, cantidad) in enumerate(estado_counts.items()):
-                cols[i].metric(estado, cantidad)
+        st.warning("No hay métricas para mostrar con los filtros seleccionados.")
 
     st.write("---")
 
     # ==============================
-    # GRÁFICO AGRUPADO POR CLIENTE
+    # 📈 GRÁFICO AGRUPADO POR CLIENTE
     # ==============================
-    grouped = filtered_df.groupby('CLIENTE').agg(
-        cantidad_proyectos=('PROYECTO', 'count'),
-        progreso_promedio=('PORCENTAJE', 'mean'),
-        ingeniero=('INGENIERO DE IMPLEMENTACION', lambda x: ', '.join(x.unique())),
-        Pais=('PAIS', lambda x: ', '.join(x.unique()))
-    ).reset_index()
+    grouped = (
+        filtered_df.groupby("CLIENTE")
+        .agg(
+            cantidad_proyectos=("PROYECTO", "count"),
+            progreso_promedio=("PORCENTAJE", "mean"),
+            Ingeniero=("INGENIERO DE IMPLEMENTACION", lambda x: ", ".join(x.dropna().astype(str).unique())),
+            Pais=("PAIS", lambda x: ", ".join(x.dropna().astype(str).unique())),
+        )
+        .reset_index()
+    )
 
-    estados_por_cliente = filtered_df.groupby('CLIENTE')['ESTADO'].apply(lambda x: ', '.join(x.unique())).reset_index()
-    grouped = grouped.merge(estados_por_cliente, on='CLIENTE')
+    estados_por_cliente = (
+        filtered_df.groupby("CLIENTE")["ESTADO"]
+        .apply(lambda x: ", ".join(x.dropna().astype(str).unique()))
+        .reset_index()
+    )
+    grouped = grouped.merge(estados_por_cliente, on="CLIENTE")
 
     if not grouped.empty:
-        grouped = grouped.sort_values(by='progreso_promedio', ascending=True)
+        grouped = grouped.sort_values(by="progreso_promedio", ascending=True)
 
         fig = px.bar(
             grouped,
-            x='progreso_promedio',
-            y='CLIENTE',
-            orientation='h',
-            text='progreso_promedio',
+            x="progreso_promedio",
+            y="CLIENTE",
+            orientation="h",
+            text="progreso_promedio",
             labels={
-                'progreso_promedio': 'Progreso promedio (%)',
-                'CLIENTE': 'Cliente',
-                'cantidad_proyectos': 'Cantidad de proyectos'
+                "progreso_promedio": "Progreso promedio (%)",
+                "CLIENTE": "Cliente",
+                "cantidad_proyectos": "Cantidad de proyectos",
             },
-            title='Progreso de Proyectos por Cliente y País',
-            hover_data={'ESTADO': True, 'ingeniero': True, 'Pais': True}
+            title="Progreso de Proyectos por Cliente",
+            hover_data={"ESTADO": True, "Ingeniero": True, "Pais": True},
         )
 
         fig.update_xaxes(range=[0, 100])
-        fig.update_traces(textposition='outside')
+        fig.update_traces(textposition="outside")
         fig.update_layout(
             xaxis_title="Progreso promedio (%)",
             yaxis_title="Cliente",
             height=600,
-            margin=dict(l=50, r=50, t=80, b=50)
+            margin=dict(l=50, r=50, t=80, b=50),
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -303,7 +247,7 @@ elif menu == "Proyectos":
         st.warning("No hay datos para los filtros seleccionados.")
 
     # ==============================
-    # EXPANDER CON TARJETAS DETALLADAS
+    # 🗂️ EXPANDER CON TARJETAS DETALLADAS
     # ==============================
     st.write("---")
     with st.expander("Ver proyectos"):
@@ -311,21 +255,21 @@ elif menu == "Proyectos":
             st.warning("No hay proyectos para mostrar.")
         else:
             for _, row in filtered_df.iterrows():
-                estado = row['ESTADO']
-                cliente = row['CLIENTE']
-                proyecto = row['PROYECTO']
-                descripcion = row['STATUS']
-                ingeniero = row['INGENIERO DE IMPLEMENTACION']
-                inicio = row.get('FECHA DE INICIO', 'No disponible')
-                fin = row.get('FECHA DE FINALIZACION', 'No disponible')
-                fechas_siguientes = row.get('FECHA SIGUIENTES PASOS', 'No disponible')
-                progreso = row['PORCENTAJE']
+                estado = row["ESTADO"]
+                cliente = row["CLIENTE"]
+                proyecto = row["PROYECTO"]
+                descripcion = row["STATUS"]
+                ingeniero = row["INGENIERO DE IMPLEMENTACION"]
+                inicio = row.get("FECHA DE INICIO", "No disponible")
+                fin = row.get("FECHA DE FINALIZACION", "No disponible")
+                fechas_siguientes = row.get("FECHA SIGUIENTES PASOS", "No disponible")
+                progreso = row["PORCENTAJE"]
 
                 # ✅ Colores dinámicos según estado
                 if "Finalizado" in estado:
-                    color = "#FFA500"  # Verde
+                    color = "#FFA500"  # Naranja
                 elif "Activo" in estado:
-                    color = "#28A745"  # Naranja
+                    color = "#28A745"  # Verde
                 elif "En pausa" in estado:
                     color = "#6C757D"  # Gris
                 else:
@@ -337,7 +281,7 @@ elif menu == "Proyectos":
                         <strong>Proyecto:</strong> {proyecto}<br>
                         <strong>Status:</strong> {descripcion}<br>
                         <strong>Ingeniero:</strong> {ingeniero}<br>
-                        <strong>Estado:</strong> {estado}<br>
+
                         <strong>Inicio:</strong> {inicio}<br>
                         <strong>Finalización:</strong> {fin}<br>
                         <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
