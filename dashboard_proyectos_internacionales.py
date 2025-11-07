@@ -255,7 +255,6 @@ elif menu == "Proyectos":
             st.warning("No hay proyectos para mostrar.")
         else:
             for _, row in filtered_df.iterrows():
-                estado = row["ESTADO"]
                 cliente = row["CLIENTE"]
                 proyecto = row["PROYECTO"]
                 descripcion = row["STATUS"]
@@ -281,7 +280,6 @@ elif menu == "Proyectos":
                         <strong>Proyecto:</strong> {proyecto}<br>
                         <strong>Status:</strong> {descripcion}<br>
                         <strong>Ingeniero:</strong> {ingeniero}<br>
-
                         <strong>Inicio:</strong> {inicio}<br>
                         <strong>Finalización:</strong> {fin}<br>
                         <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
