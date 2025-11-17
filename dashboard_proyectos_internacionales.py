@@ -258,10 +258,10 @@ elif menu == "Proyectos":
                 cliente = row["CLIENTE"]
                 proyecto = row["PROYECTO"]
                 descripcion = row["STATUS"]
+                fechas_siguientes = row.get("FECHA SIGUIENTES PASOS", "No disponible")
                 ingeniero = row["INGENIERO DE IMPLEMENTACION"]
                 inicio = row.get("FECHA DE INICIO", "No disponible")
                 fin = row.get("FECHA DE FINALIZACION", "No disponible")
-                fechas_siguientes = row.get("FECHA SIGUIENTES PASOS", "No disponible")
                 progreso = row["PORCENTAJE"]
 
                 # ✅ Colores dinámicos según estado
@@ -279,10 +279,10 @@ elif menu == "Proyectos":
                         <strong>Cliente:</strong> {cliente}<br>
                         <strong>Proyecto:</strong> {proyecto}<br>
                         <strong>Status:</strong> {descripcion}<br>
+                        <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
                         <strong>Ingeniero:</strong> {ingeniero}<br>
                         <strong>Inicio:</strong> {inicio}<br>
                         <strong>Finalización:</strong> {fin}<br>
-                        <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
                         <strong>Progreso:</strong> {progreso:.1f}%
                     </div>
                 """, unsafe_allow_html=True)
