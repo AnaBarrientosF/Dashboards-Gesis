@@ -86,6 +86,39 @@ div[data-testid="stMetric"] {
     cursor: pointer;         
 
 
+
+/* Contenedor del calendario */
+[data-baseweb="datepicker"] {
+    background-color: #2c2c2c !important; /* Fondo oscuro */
+    color: #ffffff !important; /* Texto blanco */
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* Encabezado del calendario */
+[data-baseweb="datepicker"] .calendar-header {
+    background-color: #1f1f1f !important;
+    color: #ffffff !important;
+}
+
+/* Días del calendario */
+[data-baseweb="datepicker"] .calendar-day {
+    color: #ffffff !important;
+}
+
+/* Día seleccionado */
+[data-baseweb="datepicker"] .calendar-day.selected {
+    background-color: #ff4d4d !important;
+    color: #ffffff !important;
+    border-radius: 50%;
+}
+
+/* Hover sobre días */
+[data-baseweb="datepicker"] .calendar-day:hover {
+    background-color: #444444 !important;
+    color: #ffffff !important;
+}
+
                       
         
 </style>
@@ -139,6 +172,11 @@ if menu == "Inicio":
 
 elif menu == "Proyectos":
 
+
+
+    # ==============================
+    # Título
+    # ==============================
     st.title("Dashboard de Proyectos")
     st.write("")
     st.write("")
@@ -152,7 +190,7 @@ elif menu == "Proyectos":
     columnas_filtrables = df.select_dtypes(include=["object"]).columns.tolist()
     columnas_seleccionadas = st.sidebar.multiselect(
         "Selecciona columnas para filtrar:",
-        opciones := columnas_filtrables,
+        columnas_filtrables,
         default=[]
     )
 
@@ -168,14 +206,30 @@ elif menu == "Proyectos":
         if valor_sel != "Todos":
             filtros[col] = valor_sel
 
-   
+    # ==============================
+    # 📅 FILTRO POR MES
+    # ==============================
+    st.sidebar.subheader("Filtrar por Mes")
+    mes_seleccionado = st.sidebar.selectbox(
+        "Selecciona un mes:",
+        ["Todos"] + [str(m) for m in range(1, 13)],
+        index=0
+    )
 
     # ==============================
     # 🧩 APLICAR FILTROS
     # ==============================
     filtered_df = df.copy()
+
+    # Filtros de texto
     for col, val in filtros.items():
         filtered_df = filtered_df[filtered_df[col].astype(str) == val]
+
+    # Filtro por mes (si existe columna FECHA DE INICIO)
+    if "FECHA DE INICIO" in filtered_df.columns:
+        filtered_df["FECHA DE INICIO"] = pd.to_datetime(filtered_df["FECHA DE INICIO"], errors="coerce")
+        if mes_seleccionado != "Todos":
+            filtered_df = filtered_df[filtered_df["FECHA DE INICIO"].dt.month == int(mes_seleccionado)]
 
     # ==============================
     # 📊 MÉTRICAS DINÁMICAS
@@ -245,6 +299,9 @@ elif menu == "Proyectos":
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No hay datos para los filtros seleccionados.")
+
+
+
 
     # ==============================
     # 🗂️ EXPANDER CON TARJETAS DETALLADAS
