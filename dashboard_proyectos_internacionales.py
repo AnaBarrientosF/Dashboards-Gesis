@@ -301,6 +301,48 @@ elif menu == "Proyectos":
         st.warning("No hay datos para los filtros seleccionados.")
 
 
+    
+    # ==============================
+    # 📋 LISTA DE PROYECTOS FILTRADOS (solo visualización)
+    # ==============================
+    st.write("---")
+    st.subheader("Lista de proyectos filtrados")
+
+    # Búsqueda en texto libre sobre columnas clave
+    columnas_busqueda = [c for c in ["PROYECTO", "CLIENTE", "ESTADO", "INGENIERO DE IMPLEMENTACION", "PAIS"] if c in filtered_df.columns]
+    termino_busqueda = st.text_input("Buscar (por proyecto, cliente, estado, ingeniero, país):", value="").strip()
+
+    df_listado = filtered_df.copy()
+    if termino_busqueda and columnas_busqueda:
+        mask = pd.Series(False, index=df_listado.index)
+        for c in columnas_busqueda:
+            mask |= df_listado[c].astype(str).str.contains(termino_busqueda, case=False, na=False)
+        df_listado = df_listado[mask]
+
+    # Selección de columnas a mostrar
+    cols_por_defecto = [c for c in ["CLIENTE", "PROYECTO", "INGENIERO DE IMPLEMENTACION", "ESTADO", "PORCENTAJE"] if c in df_listado.columns]
+    cols_mostrar = st.multiselect("Columnas a mostrar en la lista:", options=df_listado.columns.tolist(), default=cols_por_defecto)
+
+    # Configuración visual (progreso, fechas)
+    column_config = {}
+    if "PORCENTAJE" in cols_mostrar:
+        try:
+            column_config["PORCENTAJE"] = st.column_config.ProgressColumn("Progreso", min_value=0, max_value=100, format="%d%%")
+        except Exception:
+            pass
+    if "FECHA DE INICIO" in cols_mostrar:
+        df_listado["FECHA DE INICIO"] = pd.to_datetime(df_listado["FECHA DE INICIO"], errors="coerce")
+    if "FECHA DE FINALIZACION" in cols_mostrar:
+        df_listado["FECHA DE FINALIZACION"] = pd.to_datetime(df_listado["FECHA DE FINALIZACION"], errors="coerce")
+
+    # Mostrar la tabla
+    st.dataframe(
+        df_listado[cols_mostrar],
+        use_container_width=True,
+        hide_index=True,
+        height=400,
+        column_config=column_config if column_config else None
+    )
 
 
     # ==============================
@@ -317,6 +359,7 @@ elif menu == "Proyectos":
                 descripcion = row["STATUS"]
                 fechas_siguientes = row.get("FECHA SIGUIENTES PASOS", "No disponible")
                 ingeniero = row["INGENIERO DE IMPLEMENTACION"]
+                estado = row["ESTADO"]
                 inicio = row.get("FECHA DE INICIO", "No disponible")
                 fin = row.get("FECHA DE FINALIZACION", "No disponible")
                 progreso = row["PORCENTAJE"]
@@ -337,7 +380,6 @@ elif menu == "Proyectos":
                         <strong>Proyecto:</strong> {proyecto}<br>
                         <strong>Status:</strong> {descripcion}<br>
                         <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
-                        <strong>Ingeniero:</strong> {ingeniero}<br>
                         <strong>Inicio:</strong> {inicio}<br>
                         <strong>Finalización:</strong> {fin}<br>
                         <strong>Progreso:</strong> {progreso:.1f}%
