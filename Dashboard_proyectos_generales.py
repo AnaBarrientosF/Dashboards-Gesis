@@ -274,7 +274,7 @@ elif menu == "Proyectos":
             .clip(lower=0, upper=100)
         )
 
-    estado_counts = filtered_df["ESTADO"].value_counts() if "ESTADO" in filtered_df.columns else pd.Series(dtype=int)
+    estado_counts = filtered_df["STATUS"].value_counts() if "STATUS" in filtered_df.columns else pd.Series(dtype=int)
 
     if not estado_counts.empty:
         total_proyectos = filtered_df["PROYECTO"].nunique() if "PROYECTO" in filtered_df.columns else len(filtered_df)
@@ -303,9 +303,9 @@ elif menu == "Proyectos":
             .reset_index()
         )
 
-        if "ESTADO" in filtered_df.columns:
+        if "STATUS" in filtered_df.columns:
             estados_por_cliente = (
-                filtered_df.groupby("CLIENTE")["ESTADO"]
+                filtered_df.groupby("CLIENTE")["STATUS"]
                 .apply(lambda x: ", ".join(x.dropna().astype(str).unique()))
                 .reset_index()
             )
@@ -326,7 +326,7 @@ elif menu == "Proyectos":
                     "cantidad_proyectos": "Cantidad de proyectos",
                 },
                 title="Progreso de Proyectos por Cliente",
-                hover_data={"ESTADO": True, "Ingeniero": True} if "ESTADO" in grouped.columns else None,
+                hover_data={"STATUS": True, "Ingeniero": True} if "STATUS" in grouped.columns else None,
             )
 
             fig.update_xaxes(range=[0, 100])
@@ -350,8 +350,8 @@ elif menu == "Proyectos":
     st.write("---")
     st.subheader("Lista de proyectos filtrados")
 
-    columnas_busqueda = [c for c in ["PROYECTO", "CLIENTE", "ESTADO", "INGENIERO DE IMPLEMENTACION"] if c in filtered_df.columns]
-    termino_busqueda = st.text_input("Buscar (por proyecto, cliente, estado, ingeniero):", value="").strip()
+    columnas_busqueda = [c for c in ["PROYECTO", "CLIENTE", "STATUS", "INGENIERO DE IMPLEMENTACION"] if c in filtered_df.columns]
+    termino_busqueda = st.text_input("Buscar (por proyecto, cliente, status, ingeniero):", value="").strip()
 
     df_listado = filtered_df.copy()
     if termino_busqueda and columnas_busqueda:
@@ -360,7 +360,7 @@ elif menu == "Proyectos":
             mask |= df_listado[c].astype(str).str.contains(termino_busqueda, case=False, na=False)
         df_listado = df_listado[mask]
 
-    cols_por_defecto = [c for c in ["CLIENTE", "PROYECTO", "INGENIERO DE IMPLEMENTACION", "ESTADO", "PORCENTAJE"] if c in df_listado.columns]
+    cols_por_defecto = [c for c in ["CLIENTE", "PROYECTO", "INGENIERO DE IMPLEMENTACION", "STATUS", "PORCENTAJE"] if c in df_listado.columns]
     cols_mostrar = st.multiselect("Columnas a mostrar en la lista:", options=df_listado.columns.tolist(), default=cols_por_defecto)
 
     column_config = {}
@@ -399,7 +399,7 @@ elif menu == "Proyectos":
                 descripcion = row["STATUS"]
                 fechas_siguientes = row.get("FECHA SIGUIENTES PASOS", "No disponible")
                 ingeniero = row["INGENIERO DE IMPLEMENTACION"]
-                estado = row["ESTADO"]
+                estado = row["STATUS"]
                 inicio = row.get("FECHA DE INICIO", "No disponible")
                 fin = row.get("FECHA DE FINALIZACION", "No disponible")
                 progreso = row["PORCENTAJE"]
