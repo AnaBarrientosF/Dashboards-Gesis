@@ -147,8 +147,8 @@ df.columns = df.columns.str.strip()
 
 # Limpiar valores en columnas clave
 df['INGENIERO DE IMPLEMENTACION'] = df['INGENIERO DE IMPLEMENTACION'].astype(str).str.strip()
-df['ESTADO'] = df['ESTADO'].astype(str).str.strip()
-df['ESTADO'] = df['ESTADO'].str.replace(r'\s+', ' ', regex=True)  # eliminar espacios extra
+df['STATUS'] = df['STATUS'].astype(str).str.strip()
+df['STATUS'] = df['STATUS'].str.replace(r'\s+', ' ', regex=True)  # eliminar espacios extra
 
 # Convertir fechas
 if 'FECHA DE INICIO' in df.columns:
