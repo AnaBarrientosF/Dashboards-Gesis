@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 
 # Configuración de la página
-st.set_page_config(page_title="Dashboard Proyectos Gesis", layout="wide")
+st.set_page_config(page_title="Dashboard Proyectos Internacionales Gesis", layout="wide")
 
 # CSS para cambiar el color del sidebar y el header
 st.markdown("""
@@ -172,21 +172,55 @@ if menu == "Inicio":
 
 elif menu == "Proyectos":
 
-
-
     # ==============================
     # Título
     # ==============================
-    st.title("Dashboard de Proyectos")
+    st.title("Dashboard de Proyectos Internacionales")
     st.write("")
     st.write("")
 
+   
     # ==============================
-    # 🎛️ FILTROS PERSONALIZADOS
+    # Normaliza columnas y prepara fechas
+    # ==============================
+    # 1) Normalizar encabezados
+    df.columns = df.columns.str.strip()
+
+    # 2) Detectar nombre real de la columna de fecha (tolerante a variaciones)
+    posibles_fechas = ["FECHA DE INICIO", "Fecha de inicio", "FECHA_INICIO", "Fecha Inicio"]
+    col_fecha = next((c for c in posibles_fechas if c in df.columns), None)
+
+    if col_fecha:
+        # Limpieza básica para evitar strings raros
+        df[col_fecha] = df[col_fecha].astype(str).str.strip().replace({"": None, "nan": None, "None": None})
+
+        # 3) Intentar parseo robusto de fechas
+        def parse_fecha_robusta(s):
+            if pd.isna(s):
+                return pd.NaT
+            # Intento por formatos comunes
+            for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y"):
+                try:
+                    return pd.to_datetime(s, format=fmt)
+                except Exception:
+                    pass
+            # Último recurso: heurística con dayfirst
+            try:
+                return pd.to_datetime(s, dayfirst=True, errors="coerce")
+            except Exception:
+                return pd.NaT
+
+        df["FECHA_INICIO_DT"] = df[col_fecha].apply(parse_fecha_robusta)
+        # 4) Extraer mes
+        df["MES_INICIO"] = df["FECHA_INICIO_DT"].dt.month
+    else:
+        # Si no hay columna de fecha, asegúrate de no intentar filtrar por mes
+        df["MES_INICIO"] = pd.NA
+
+    # ==============================
+    # 🎛️ FILTROS PERSONALIZADOS (tu bloque original)
     # ==============================
     st.sidebar.header("Filtros Personalizados")
-
-    # Selección de columnas filtrables (solo texto)
     columnas_filtrables = df.select_dtypes(include=["object"]).columns.tolist()
     columnas_seleccionadas = st.sidebar.multiselect(
         "Selecciona columnas para filtrar:",
@@ -194,7 +228,6 @@ elif menu == "Proyectos":
         default=[]
     )
 
-    # Crear selectboxes dinámicos según columnas seleccionadas
     filtros = {}
     for col in columnas_seleccionadas:
         valores_unicos = ["Todos"] + sorted(df[col].dropna().astype(str).unique().tolist())
@@ -207,14 +240,20 @@ elif menu == "Proyectos":
             filtros[col] = valor_sel
 
     # ==============================
-    # 📅 FILTRO POR MES
+    # 📅 FILTRO POR MES (usando MES_INICIO)
     # ==============================
     st.sidebar.subheader("Filtrar por Mes")
-    mes_seleccionado = st.sidebar.selectbox(
-        "Selecciona un mes:",
-        ["Todos"] + [str(m) for m in range(1, 13)],
-        index=0
-    )
+    meses_nombres = ["Todos", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    mes_seleccionado = st.sidebar.selectbox("Selecciona un mes:", meses_nombres, index=0)
+
+    mapa_mes = {nombre: i for i, nombre in enumerate(meses_nombres)}
+    # Ajustar para que "Enero" sea 1, "Febrero" 2, ... y "Todos" -> 0
+    mapa_mes = {m: i for i, m in enumerate(meses_nombres)}
+    # Rehacer correctamente:
+    mapa_mes = {"Todos": None, "Enero": 1, "Febrero": 2, "Marzo": 3, "Abril": 4, "Mayo": 5,
+                "Junio": 6, "Julio": 7, "Agosto": 8, "Septiembre": 9, "Octubre": 10, "Noviembre": 11, "Diciembre": 12}
+    mes_num = mapa_mes.get(mes_seleccionado)
 
     # ==============================
     # 🧩 APLICAR FILTROS
@@ -225,90 +264,99 @@ elif menu == "Proyectos":
     for col, val in filtros.items():
         filtered_df = filtered_df[filtered_df[col].astype(str) == val]
 
-    # Filtro por mes (si existe columna FECHA DE INICIO)
-    if "FECHA DE INICIO" in filtered_df.columns:
-        filtered_df["FECHA DE INICIO"] = pd.to_datetime(filtered_df["FECHA DE INICIO"], errors="coerce")
-        if mes_seleccionado != "Todos":
-            filtered_df = filtered_df[filtered_df["FECHA DE INICIO"].dt.month == int(mes_seleccionado)]
+    # Filtro por mes usando la columna derivada
+    if mes_num is not None and "MES_INICIO" in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df["MES_INICIO"] == mes_num]
 
     # ==============================
-    # 📊 MÉTRICAS DINÁMICAS
+    # 📊 MÉTRICAS DINÁMICAS (ajuste de porcentaje a numérico)
     # ==============================
-    estado_counts = filtered_df["ESTADO"].value_counts()
+    # Asegurar que PORCENTAJE sea numérico en el filtered_df
+    if "PORCENTAJE" in filtered_df.columns:
+        filtered_df["PORCENTAJE"] = (
+            pd.to_numeric(filtered_df["PORCENTAJE"].astype(str).str.replace("%", "", regex=False),
+                        errors="coerce")
+            .clip(lower=0, upper=100)
+        )
+
+    estado_counts = filtered_df["ESTADO"].value_counts() if "ESTADO" in filtered_df.columns else pd.Series(dtype=int)
 
     if not estado_counts.empty:
-        total_proyectos = filtered_df["PROYECTO"].nunique()
+        total_proyectos = filtered_df["PROYECTO"].nunique() if "PROYECTO" in filtered_df.columns else len(filtered_df)
         num_cols = len(estado_counts) + 1
         cols = st.columns(num_cols)
-        cols[0].metric("Total Proyectos", total_proyectos)
+        cols[0].metric("Total Proyectos", int(total_proyectos))
         for i, (estado, cantidad) in enumerate(estado_counts.items(), start=1):
-            cols[i].metric(estado, cantidad)
+            cols[i].metric(str(estado), int(cantidad))
     else:
         st.warning("No hay métricas para mostrar con los filtros seleccionados.")
 
     st.write("---")
 
     # ==============================
-    # 📈 GRÁFICO AGRUPADO POR CLIENTE
+    # 📈 GRÁFICO AGRUPADO POR CLIENTE (tu bloque con pequeños resguardos)
     # ==============================
-    grouped = (
-        filtered_df.groupby("CLIENTE")
-        .agg(
-            cantidad_proyectos=("PROYECTO", "count"),
-            progreso_promedio=("PORCENTAJE", "mean"),
-            Ingeniero=("INGENIERO DE IMPLEMENTACION", lambda x: ", ".join(x.dropna().astype(str).unique())),
-            Pais=("PAIS", lambda x: ", ".join(x.dropna().astype(str).unique())),
-        )
-        .reset_index()
-    )
-
-    estados_por_cliente = (
-        filtered_df.groupby("CLIENTE")["ESTADO"]
-        .apply(lambda x: ", ".join(x.dropna().astype(str).unique()))
-        .reset_index()
-    )
-    grouped = grouped.merge(estados_por_cliente, on="CLIENTE")
-
-    if not grouped.empty:
-        grouped = grouped.sort_values(by="progreso_promedio", ascending=True)
-
-        fig = px.bar(
-            grouped,
-            x="progreso_promedio",
-            y="CLIENTE",
-            orientation="h",
-            text="progreso_promedio",
-            labels={
-                "progreso_promedio": "Progreso promedio (%)",
-                "CLIENTE": "Cliente",
-                "cantidad_proyectos": "Cantidad de proyectos",
-            },
-            title="Progreso de Proyectos por Cliente",
-            hover_data={"ESTADO": True, "Ingeniero": True, "Pais": True},
+    if all(c in filtered_df.columns for c in ["CLIENTE", "PROYECTO"]):
+        grouped = (
+            filtered_df.groupby("CLIENTE")
+            .agg(
+                cantidad_proyectos=("PROYECTO", "count"),
+                progreso_promedio=("PORCENTAJE", "mean"),
+                Ingeniero=("INGENIERO DE IMPLEMENTACION", lambda x: ", ".join(x.dropna().astype(str).unique())
+                        if "INGENIERO DE IMPLEMENTACION" in filtered_df.columns else ""),
+                Pais=("PAIS", lambda x: ", ".join(x.dropna().astype(str).unique())
+                    if "PAIS" in filtered_df.columns else ""),
+            )
+            .reset_index()
         )
 
-        fig.update_xaxes(range=[0, 100])
-        fig.update_traces(textposition="outside")
-        fig.update_layout(
-            xaxis_title="Progreso promedio (%)",
-            yaxis_title="Cliente",
-            height=600,
-            margin=dict(l=50, r=50, t=80, b=50),
-        )
+        if "ESTADO" in filtered_df.columns:
+            estados_por_cliente = (
+                filtered_df.groupby("CLIENTE")["ESTADO"]
+                .apply(lambda x: ", ".join(x.dropna().astype(str).unique()))
+                .reset_index()
+            )
+            grouped = grouped.merge(estados_por_cliente, on="CLIENTE", how="left")
 
-        st.plotly_chart(fig, use_container_width=True)
+        if not grouped.empty:
+            grouped = grouped.sort_values(by="progreso_promedio", ascending=True)
+
+            fig = px.bar(
+                grouped,
+                x="progreso_promedio",
+                y="CLIENTE",
+                orientation="h",
+                text="progreso_promedio",
+                labels={
+                    "progreso_promedio": "Progreso promedio (%)",
+                    "CLIENTE": "Cliente",
+                    "cantidad_proyectos": "Cantidad de proyectos",
+                },
+                title="Progreso de Proyectos por Cliente",
+                hover_data={"ESTADO": True, "Ingeniero": True, "Pais": True} if "ESTADO" in grouped.columns else None,
+            )
+
+            fig.update_xaxes(range=[0, 100])
+            fig.update_traces(textposition="outside")
+            fig.update_layout(
+                xaxis_title="Progreso promedio (%)",
+                yaxis_title="Cliente",
+                height=600,
+                margin=dict(l=50, r=50, t=80, b=50),
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No hay datos para los filtros seleccionados.")
     else:
-        st.warning("No hay datos para los filtros seleccionados.")
+        st.warning("Faltan columnas esenciales (CLIENTE y/o PROYECTO) para el gráfico.")
 
-
-    
     # ==============================
-    # 📋 LISTA DE PROYECTOS FILTRADOS (solo visualización)
+    # 📋 LISTA DE PROYECTOS FILTRADOS (tu bloque)
     # ==============================
     st.write("---")
     st.subheader("Lista de proyectos filtrados")
 
-    # Búsqueda en texto libre sobre columnas clave
     columnas_busqueda = [c for c in ["PROYECTO", "CLIENTE", "ESTADO", "INGENIERO DE IMPLEMENTACION", "PAIS"] if c in filtered_df.columns]
     termino_busqueda = st.text_input("Buscar (por proyecto, cliente, estado, ingeniero, país):", value="").strip()
 
@@ -319,23 +367,22 @@ elif menu == "Proyectos":
             mask |= df_listado[c].astype(str).str.contains(termino_busqueda, case=False, na=False)
         df_listado = df_listado[mask]
 
-    # Selección de columnas a mostrar
     cols_por_defecto = [c for c in ["CLIENTE", "PROYECTO", "INGENIERO DE IMPLEMENTACION", "ESTADO", "PORCENTAJE"] if c in df_listado.columns]
     cols_mostrar = st.multiselect("Columnas a mostrar en la lista:", options=df_listado.columns.tolist(), default=cols_por_defecto)
 
-    # Configuración visual (progreso, fechas)
     column_config = {}
     if "PORCENTAJE" in cols_mostrar:
         try:
             column_config["PORCENTAJE"] = st.column_config.ProgressColumn("Progreso", min_value=0, max_value=100, format="%d%%")
         except Exception:
             pass
-    if "FECHA DE INICIO" in cols_mostrar:
-        df_listado["FECHA DE INICIO"] = pd.to_datetime(df_listado["FECHA DE INICIO"], errors="coerce")
+    if "FECHA DE INICIO" in cols_mostrar and "FECHA_INICIO_DT" in df_listado.columns:
+        # Muestra la fecha parseada si quieres consistencia
+        df_listado["FECHA DE INICIO"] = df_listado["FECHA_INICIO_DT"]
+
     if "FECHA DE FINALIZACION" in cols_mostrar:
         df_listado["FECHA DE FINALIZACION"] = pd.to_datetime(df_listado["FECHA DE FINALIZACION"], errors="coerce")
 
-    # Mostrar la tabla
     st.dataframe(
         df_listado[cols_mostrar],
         use_container_width=True,
