@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import altair as alt
+from datetime import datetime
 
-# Configuración de la página
-st.set_page_config(page_title="Dashboard Proyectos Gesis", layout="wide")
 
 # CSS para cambiar el color del sidebar y el header
 st.markdown("""
@@ -119,17 +119,34 @@ div[data-testid="stMetric"] {
     color: #ffffff !important;
 }
 
-                      
-        
+
+/* vega-tooltip (según versión puede ser vg-tooltip o vg-tooltip-element) */
+#vg-tooltip-element,
+.vg-tooltip,
+.vega-tooltip {
+  background: rgba(0,0,0,0.92) !important;
+  color: #fff !important;
+  font-family: Segoe UI, Arial, sans-serif !important;
+  font-size: 12px !important;
+}
+
+/* Fuerza color dentro de la tabla */
+#vg-tooltip-element table,
+#vg-tooltip-element tr,
+#vg-tooltip-element td,
+#vg-tooltip-element th,
+.vg-tooltip table,
+.vg-tooltip tr,
+.vg-tooltip td,
+.vg-tooltip th,
+.vega-tooltip table,
+.vega-tooltip tr,
+.vega-tooltip td,
+.vega-tooltip th {
+  color: #fff !important;
+}
 </style>
 """, unsafe_allow_html=True)
-
-estado_counts = {
-    "Activo": 12,
-    "En pausa": 5,
-    "En cierre": 3,
-    "Finalizado": 8
-}
 
 
 # ==============================
@@ -148,7 +165,7 @@ df.columns = df.columns.str.strip()
 # Limpiar valores en columnas clave
 df['INGENIERO DE IMPLEMENTACION'] = df['INGENIERO DE IMPLEMENTACION'].astype(str).str.strip()
 df['STATUS'] = df['STATUS'].astype(str).str.strip()
-df['STATUS'] = df['STATUS'].str.replace(r'\s+', ' ', regex=True)  # eliminar espacios extra
+df['STATUS'] = df['STATUS'].str.replace(r'\s+', ' ', regex=True) 
 
 # Convertir fechas
 if 'FECHA DE INICIO' in df.columns:
@@ -162,10 +179,104 @@ st.sidebar.image("logo.jpeg", width=110)
 st.sidebar.title("Dashboard")
 menu = st.sidebar.radio("Menú", ["Inicio", "Proyectos"])
 
+
 # Contenido principal
 if menu == "Inicio":
-    st.title("Dashboard General")
+    st.set_page_config(page_title="Dashboard Proyectos Gesis", layout="wide")
+
+    STATUS_COLORS = {
+        "Finalizado": "#2e7d32",
+        "Activo": "#1565c0",
+        "En pausa":   "#6d4c41",
+        "Fase de cierre": "#6a1b9a",
+    }
+
     
+    def chip(texto, color="#1565c0"):
+        return f"<span style='background:{color};color:white;padding:4px 8px;border-radius:12px;font-size:0.85rem'>{texto}</span>"
+
+    def color_status(s):
+        return STATUS_COLORS.get(str(s), "#455a64")
+
+    def truncar(texto, max_chars=140):
+        t = (str(texto) if texto is not None else "").strip()
+        return t if len(t) <= max_chars else t[:max_chars] + "…"
+
+    
+    # =================== FILTROS ===================
+    st.sidebar.title("Filtros")
+    ingenieros = sorted([i for i in df["INGENIERO DE IMPLEMENTACION"].dropna().unique().tolist() if i])
+    estados = sorted([s for s in df["STATUS"].dropna().unique().tolist() if s])
+
+    sel_ingenieros = st.sidebar.multiselect("Ingeniero(s)", options=ingenieros)
+    sel_estados = st.sidebar.multiselect("Status", options=estados)
+    texto_busqueda = st.sidebar.text_input("Buscar (proyecto / descripción / cliente / implementador)")
+
+    m = pd.Series([True] * len(df))
+    if sel_ingenieros: m &= df["INGENIERO DE IMPLEMENTACION"].isin(sel_ingenieros)
+    if sel_estados:    m &= df["STATUS"].isin(sel_estados)
+    if texto_busqueda:
+        t = texto_busqueda.lower()
+        m &= df[["PROYECTO", "DESCRIPCION", "CLIENTE", "INGENIERO DE IMPLEMENTACION"]].apply(
+            lambda s: s.astype(str).str.lower().str.contains(t, na=False)
+        ).any(axis=1)
+
+    df_f = df[m].copy()
+
+    # =================== HEADER ===================
+    st.title("Dashboard Proyectos Gesis")
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total", len(df_f))
+    col2.metric("Activos", int((df_f["STATUS"] == "Activo").sum()))
+    col3.metric("Fase de cierre", int((df_f["STATUS"] == "Fase de cierre").sum()))
+    col4.metric("Finalizado", int((df_f["STATUS"] == "Finalizado").sum()))
+    col5.metric("En Pausa", int((df_f["STATUS"] == "En pausa").sum()))
+
+    st.markdown("---")
+
+
+    # =================== TARJETAS EN CUADRÍCULA ===================
+    st.subheader("Vista por proyectos")
+
+    if df_f.empty:
+        st.warning("No hay proyectos para los filtros seleccionados.")
+    else:
+        # Orden sugerido
+        df_f = df_f.sort_values(["STATUS", "INGENIERO DE IMPLEMENTACION", "PROYECTO"])
+
+        # 4 columnas funciona bien para ~58 proyectos (ajusta a 3 si lo prefieres)
+        cols = st.columns(4)
+        i = 0
+        for _, row in df_f.iterrows():
+            c = cols[i % len(cols)]
+            with c:
+                st.markdown(
+                    f"""
+    <div style="border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:12px;">
+    <div style="font-weight:600;font-size:1.0rem;">{row['CLIENTE']}</div>
+    <div style="margin:6px 0;">{chip(row['STATUS'], color=color_status(row['STATUS']))}</div>
+    <div style="color:#455a64;">{row['PROYECTO']}</div>
+    <div style="color:#757575;margin:4px 0;"> {row.get('INGENIERO DE IMPLEMENTACION', '')}</div>
+    <div style="margin-top:8px;color:#607d8b;font-size:0.9rem;">
+        {(" Inicio: " + str(row['FECHA DE INICIO'])) if pd.notna(row.get('FECHA DE INICIO')) else ""}
+        {(" &nbsp;&nbsp;—&nbsp;&nbsp;  Fin: " + str(row['FECHA DE FINALIZACION'])) if pd.notna(row.get('FECHA DE FINALIZACION')) else ""}
+    </div>
+    <div style="margin-top:8px;">
+        {"Avance: " + str(int(row['PORCENTAJE'])) + "%" if not pd.isna(row.get('PORCENTAJE')) else ""}
+    </div>
+    </div>
+    """,
+                    unsafe_allow_html=True
+                )
+                with st.expander("Ver descripción completa"):
+                    st.write(row["DESCRIPCION"])
+            i += 1
+
+    st.caption("Tip: filtra por ingeniero o estado; la búsqueda encuentra coincidencias en proyecto, descripción y cliente.")
+
+
+
 elif menu == "Proyectos":
 
     # ==============================
@@ -350,8 +461,8 @@ elif menu == "Proyectos":
     st.write("---")
     st.subheader("Lista de proyectos filtrados")
 
-    columnas_busqueda = [c for c in ["PROYECTO", "CLIENTE", "STATUS", "INGENIERO DE IMPLEMENTACION"] if c in filtered_df.columns]
-    termino_busqueda = st.text_input("Buscar (por proyecto, cliente, status, ingeniero):", value="").strip()
+    columnas_busqueda = [c for c in ["PROYECTO", "CLIENTE", "STATUS", "INGENIERO DE IMPLEMENTACION", "DESCRIPCION", "FECHA SIGUIENTES PASOS"] if c in filtered_df.columns]
+    termino_busqueda = st.text_input("Buscar (por proyecto, cliente, status, ingeniero, fecha):", value="").strip()
 
     df_listado = filtered_df.copy()
     if termino_busqueda and columnas_busqueda:
@@ -385,43 +496,4 @@ elif menu == "Proyectos":
     )
 
 
-    # ==============================
-    # 🗂️ EXPANDER CON TARJETAS DETALLADAS
-    # ==============================
-    st.write("---")
-    with st.expander("Ver proyectos"):
-        if filtered_df.empty:
-            st.warning("No hay proyectos para mostrar.")
-        else:
-            for _, row in filtered_df.iterrows():
-                cliente = row["CLIENTE"]
-                proyecto = row["PROYECTO"]
-                descripcion = row["STATUS"]
-                fechas_siguientes = row.get("FECHA SIGUIENTES PASOS", "No disponible")
-                ingeniero = row["INGENIERO DE IMPLEMENTACION"]
-                estado = row["STATUS"]
-                inicio = row.get("FECHA DE INICIO", "No disponible")
-                fin = row.get("FECHA DE FINALIZACION", "No disponible")
-                progreso = row["PORCENTAJE"]
-
-                # ✅ Colores dinámicos según estado
-                if "Finalizado" in estado:
-                    color = "#FFA500"  # Naranja
-                elif "Activo" in estado:
-                    color = "#28A745"  # Verde
-                elif "En pausa" in estado:
-                    color = "#6C757D"  # Gris
-                else:
-                    color = "#FF4C4C"  # Rojo
-
-                st.markdown(f"""
-                    <div style="background:{color};padding:15px;border-radius:10px;margin-bottom:10px;color:white;">
-                        <strong>Cliente:</strong> {cliente}<br>
-                        <strong>Proyecto:</strong> {proyecto}<br>
-                        <strong>Status:</strong> {descripcion}<br>
-                        <strong>Fecha siguientes pasos:</strong> {fechas_siguientes}<br>
-                        <strong>Inicio:</strong> {inicio}<br>
-                        <strong>Finalización:</strong> {fin}<br>
-                        <strong>Progreso:</strong> {progreso:.1f}%
-                    </div>
-                """, unsafe_allow_html=True)
+   
